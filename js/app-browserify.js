@@ -1,14 +1,13 @@
 "use strict";
 
-// es5 polyfills, powered by es5-shim
-require("es5-shim")
-// es6 polyfills, powered by babel
 require("babel/register")
+require("es5-shim")
 
 import {Promise} from 'es6-promise'
 import Backbone from 'backbone'
 import React, {Component} from 'react'
 import _ from 'underscore'
+
 
 const qs = (s, el) => (el || document).querySelector(s)
 
@@ -16,6 +15,7 @@ const meetup_key = `326e493f58383976434f5963243a5e`,
     meetup_url = (path) => `https://api.meetup.com${path}?key=${meetup_key}&callback=?`,
     find_groups_url = (search) => `${meetup_url('/find/groups')}&text=${search}`,
     find_events_url = () => meetup_url('/2/open_events')
+
 
 var Groups = Backbone.Collection.extend({
     url: function(){
@@ -36,37 +36,50 @@ var Groups = Backbone.Collection.extend({
 const groups = new Groups()
 /** end */
 
-const typeahead = (cb, timeout, context) => _.debounce(() => {
-    // is fetching already occuring?
-    if(context.fetching){
-        // assume context.fetching is a $.Deferred
-        context.fetching.abort()
-    }
+// const typeahead = (cb, timeout, context) => _.debounce(() => {
+//     // is fetching already occuring?
+//     if(context.fetching){
+//         // assume context.fetching is a $.Deferred
+//         context.fetching.abort()
+//     }
 
-    context.fetching = cb() // cb returns a $.Deferred()
-    context.fetching.then((...args) => {
-        context.fetching = null
-    })
-}, timeout)
+//     context.fetching = cb() // cb returns a $.Deferred()
+//     context.fetching.then((...args) => {
+//         context.fetching = null
+//     })
+// }, timeout)
+
+function* search(){
+    var promise
+    while(true){
+        if(promise) promise.abort()
+        promise = groups.fetch()
+        promise.then(() => {
+            promise = null
+        })
+        yield promise
+    }
+}
+
 
 class Search extends Component {
     constructor(...args){
         super(...args)
-        // only allow search to run once very 100ms
-        this.fetching = null
-        this.search_callback = typeahead(this._search.bind(this), 100, this)
+        this.state = {
+            search: search()
+        }
     }
     _search(){
         var searchText = React.findDOMNode(this.refs.search).value
         groups.search = searchText
-        return groups.fetch()
+        this.state.search.next()
     }
     render(){
         return (<form>
             <div>
                 <input type="search" ref="search"
                 placeholder="Search for meetups"
-                onKeyUp={() => this.search_callback()} />
+                onKeyUp={() => this._search()} />
             </div>
             <button>Go!</button>
         </form>)
