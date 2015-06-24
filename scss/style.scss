@@ -87,3 +87,14 @@ img {
 /**
  * YOUR CODE HERE
  */
+
+.container {
+    max-width: 600px;
+    padding: 1.5rem;
+    margin: auto;
+}
+
+.description {
+    max-height: 50vh;
+    overflow: auto;
+}
